@@ -5,9 +5,11 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Download } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { AlertCircle, Download, User, Briefcase, IdCard, CreditCard, Building, Calendar, CheckCircle, XCircle, Users } from "lucide-react"
 import PDFViewer from "@/components/pdf-viewer"
 import { supabase } from "@/lib/supabase"
 
@@ -120,8 +122,12 @@ export default function WorkerVerificationPage() {
 
       let matchedWorker = filteredWorkers.find((w) => w.nik === inputValue || w.ktp === inputValue)
 
-      if (!matchedWorker && inputValue.length === 5) {
-        matchedWorker = filteredWorkers.find((w) => w.nik.endsWith(inputValue) || w.ktp.endsWith(inputValue))
+      if (!matchedWorker) {
+        if (inputValue.length >= 5 && inputValue.length <= 6) {
+          matchedWorker = filteredWorkers.find((w) => w.nik.endsWith(inputValue))
+        } else if (inputValue.length === 7) {
+          matchedWorker = filteredWorkers.find((w) => w.ktp.endsWith(inputValue))
+        }
       }
 
       if (!matchedWorker) {
@@ -198,7 +204,7 @@ export default function WorkerVerificationPage() {
       <div className="mx-auto max-w-6xl">
         {verification.status === "idle" || verification.status === "error" ? (
           <div className="flex min-h-[80vh] items-center justify-center">
-            <Card className="w-full max-w-md">
+            <Card className="w-full max-w-md shadow-lg animate-in fade-in-0 duration-500">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl">Worker Verification</CardTitle>
                 <CardDescription>Enter your NIK/KTP to verify and access documents</CardDescription>
@@ -223,14 +229,16 @@ export default function WorkerVerificationPage() {
                     </div>
                   </div>
 
+                  <Separator />
+
                   <div className="space-y-2">
                     <label htmlFor="input" className="block text-sm font-medium">
-                      NIK/KTP (Full or Last 5 Digits)
+                      NIK/KTP (Full, Last 5-6 digits for NIK, or Last 7 digits for KTP)
                     </label>
                     <Input
                       id="input"
                       type="text"
-                      placeholder="Enter your ID or last 5 digits"
+                      placeholder="Enter full ID, last 5-6 digits for NIK, or last 7 for KTP"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       className="placeholder:text-muted-foreground"
@@ -253,59 +261,95 @@ export default function WorkerVerificationPage() {
             </Card>
           </div>
         ) : verification.status === "loading" ? (
-          <div className="flex min-h-[80vh] items-center justify-center">
+          <div className="flex min-h-[80vh] items-center justify-center animate-in fade-in-0 duration-500">
             <div className="text-center">
               <Spinner className="mb-4" />
               <p className="text-muted-foreground">Verifying your credentials...</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            <Card>
+          <div className="space-y-6 animate-in fade-in-0 duration-500">
+            <Card className="shadow-lg animate-in fade-in-0 duration-500">
               <CardHeader>
-                <CardTitle>Worker Information</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <div>
+                    <CardTitle className="text-3xl">Worker Information</CardTitle>
+                    <CardDescription>Details of the verified worker</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Name</p>
-                    <p className="text-lg font-semibold">{verification.worker?.name}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="text-lg font-semibold">{verification.worker?.name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Briefcase className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Department</p>
+                        <p className="text-lg font-semibold">{verification.worker?.department}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <IdCard className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">NIK</p>
+                        <p className="text-lg font-mono">{verification.worker?.nik}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">KTP</p>
+                        <p className="text-lg font-mono">{verification.worker?.ktp}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Department</p>
-                    <p className="text-lg font-semibold">{verification.worker?.department}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">NIK</p>
-                    <p className="text-lg font-mono">{verification.worker?.nik}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">KTP</p>
-                    <p className="text-lg font-mono">{verification.worker?.ktp}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Factory</p>
-                    <p className="text-lg font-semibold">Factory {verification.worker?.factory}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Verified Date</p>
-                    <p className="text-lg font-semibold">{verification.worker?.verified_date ? new Date(verification.worker.verified_date).toLocaleString() : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <p className="inline-block rounded-full bg-accent/20 px-3 py-1 text-sm font-semibold text-accent-foreground">
-                      {verification.worker?.status ? "Verified" : "Not Verified"}
-                    </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Building className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Factory</p>
+                        <p className="text-lg font-semibold">Factory {verification.worker?.factory}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Verified Date</p>
+                        <p className="text-lg font-semibold">{verification.worker?.verified_date ? new Date(verification.worker.verified_date).toLocaleString() : 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      {verification.worker?.status ? (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      )}
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <Badge variant={verification.worker?.status ? "default" : "destructive"}>
+                          {verification.worker?.status ? "Verified" : "Not Verified"}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Separator />
+
+            <Card className="shadow-lg animate-in fade-in-0 duration-500">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Document</CardTitle>
-                  <CardDescription>Worker verification document</CardDescription>
+                  <CardDescription>Fair Trade - Handbook</CardDescription>
                 </div>
                 <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="gap-2 bg-transparent">
                   <Download className="h-4 w-4" />
@@ -319,6 +363,8 @@ export default function WorkerVerificationPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Separator />
 
             <div className="flex justify-center">
               <Button
