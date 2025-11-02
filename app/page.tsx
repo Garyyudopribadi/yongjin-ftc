@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -206,7 +207,11 @@ export default function WorkerVerificationPage() {
           <div className="flex min-h-[80vh] items-center justify-center">
             <Card className="w-full max-w-md shadow-lg animate-in fade-in-0 duration-500">
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Worker Verification</CardTitle>
+                <div className="flex justify-center items-center space-x-4 mb-4">
+                  <Image src="/yjlogo.png" alt="Y Logo" width={100} height={100} className="object-contain" />
+                  <Image src="/fairtradelogo.png" alt="Fair Trade Logo" width={70} height={70} className="object-contain" />
+                </div>
+                <CardTitle className="text-2xl">Fair Trade Verification</CardTitle>
                 <CardDescription>Enter your NIK/KTP to verify and access documents</CardDescription>
               </CardHeader>
               <CardContent>

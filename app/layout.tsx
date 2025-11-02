@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: 'YJ-FAIR TRADE',
   description: 'Dev By Garyyudo',
   generator: 'Garyyudo',
+  icons: {
+    icon: '/icon-256x256.png',
+    apple: '/icon-256x256.png',
+  },
 }
 
 export default function RootLayout({
