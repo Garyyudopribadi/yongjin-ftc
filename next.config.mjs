@@ -7,9 +7,6 @@ const nextConfig = {
     unoptimized: true,
   },
   turbopack: {},
-  experimental: {
-    serverExternalPackages: ['canvas'],
-  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.alias = {
