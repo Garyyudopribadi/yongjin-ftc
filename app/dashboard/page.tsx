@@ -125,12 +125,11 @@ export default function DashboardPage() {
   const exportToPDF = () => {
     const doc = new jsPDF()
     doc.text('Yongjin FTC Workers Data', 14, 16)
-    const tableColumn = ['ID', 'Name', 'NIK', 'KTP', 'Department', 'Factory', 'Status', 'Verified Date']
-    const tableRows = filteredWorkers.map(worker => [
-      worker.id,
+    const tableColumn = ['No', 'Name', 'NIK', 'Department', 'Factory', 'Status', 'Verified Date']
+    const tableRows = filteredWorkers.map((worker, index) => [
+      index + 1,
       worker.name,
       worker.nik,
-      worker.ktp,
       worker.department,
       `Factory ${worker.factory}`,
       worker.status ? 'Verified' : 'Unverified',
@@ -253,10 +252,9 @@ export default function DashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>NIK</TableHead>
-                  <TableHead>KTP</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Factory</TableHead>
                   <TableHead>Status</TableHead>
@@ -264,12 +262,11 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedWorkers.map((worker) => (
+                {paginatedWorkers.map((worker, index) => (
                   <TableRow key={worker.id}>
-                    <TableCell>{worker.id}</TableCell>
+                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                     <TableCell>{worker.name}</TableCell>
                     <TableCell>{worker.nik}</TableCell>
-                    <TableCell>{worker.ktp}</TableCell>
                     <TableCell>{worker.department}</TableCell>
                     <TableCell>Factory {worker.factory}</TableCell>
                     <TableCell>
