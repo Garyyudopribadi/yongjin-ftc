@@ -43,6 +43,13 @@ export default function DashboardPage() {
   const itemsPerPage = 21
 
   useEffect(() => {
+    const access = localStorage.getItem('dashboard_access')
+    if (access !== 'true') {
+      window.location.href = '/'
+    }
+  }, [])
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         // Fetch stats
@@ -160,10 +167,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 p-4">
-      <Button asChild variant="outline" className="fixed bottom-4 right-4 z-10" title="Back to Home">
-        <Link href="/">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+      <Button variant="outline" className="fixed bottom-4 right-4 z-10" title="Back to Home" onClick={() => { localStorage.removeItem('dashboard_access'); window.location.href = '/'; }}>
+        <ArrowLeft className="h-4 w-4" />
       </Button>
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">

@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { AlertCircle, Download, User, Briefcase, IdCard, CreditCard, Building, Calendar, CheckCircle, XCircle, Users, LayoutDashboard } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import PDFViewer from "@/components/pdf-viewer"
 import { supabase } from "@/lib/supabase"
 
@@ -43,6 +44,9 @@ export default function WorkerVerificationPage() {
     worker: null,
     error: "",
   })
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false)
+  const [passkeyInput, setPasskeyInput] = useState("")
+  const [passkeyError, setPasskeyError] = useState("")
 
   useEffect(() => {
     const fetchWorkers = async () => {
@@ -202,12 +206,22 @@ export default function WorkerVerificationPage() {
     }
   }
 
+  const handlePasskeySubmit = () => {
+    if (passkeyInput === "0000") {
+      localStorage.setItem('dashboard_access', 'true')
+      setShowPasskeyModal(false)
+      setPasskeyInput("")
+      setPasskeyError("")
+      window.location.href = "/dashboard"
+    } else {
+      setPasskeyError("Invalid passkey. Please try again.")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 p-4">
-      <Button asChild variant="outline" className="fixed bottom-4 right-4 z-10" title="Go to Dashboard">
-        <Link href="/dashboard">
-          <LayoutDashboard className="h-4 w-4" />
-        </Link>
+      <Button variant="outline" className="fixed bottom-4 right-4 z-10" title="Go to Dashboard" onClick={() => setShowPasskeyModal(true)}>
+        <LayoutDashboard className="h-4 w-4" />
       </Button>
       <div className="mx-auto max-w-6xl">
         {verification.status === "idle" || verification.status === "error" ? (
@@ -395,6 +409,34 @@ export default function WorkerVerificationPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={showPasskeyModal} onOpenChange={setShowPasskeyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Passkey</DialogTitle>
+            <DialogDescription>
+              Please enter the passkey to access the dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="password"
+              placeholder="Enter passkey"
+              value={passkeyInput}
+              onChange={(e) => setPasskeyInput(e.target.value)}
+            />
+            {passkeyError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{passkeyError}</AlertDescription>
+              </Alert>
+            )}
+            <Button onClick={handlePasskeySubmit} className="w-full">
+              Submit
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

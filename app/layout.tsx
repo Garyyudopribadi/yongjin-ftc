@@ -11,8 +11,9 @@ export const metadata: Metadata = {
   description: 'Dev By Garyyudo',
   generator: 'Garyyudo',
   icons: {
-    icon: '/icon-256x256.png',
-    apple: '/icon-256x256.png',
+    icon: '/icons/icon-256x256.png',
+    shortcut: '/icons/icon-256x256.png',
+    apple: '/icons/icon-256x256.png',
   },
 }
 
