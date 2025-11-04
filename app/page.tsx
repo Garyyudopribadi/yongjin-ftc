@@ -122,13 +122,14 @@ export default function WorkerVerificationPage() {
       console.log('Filtered workers count:', filteredWorkers.length)
       console.log('Filtered workers sample:', filteredWorkers.slice(0, 3).map(w => ({ nik: w.nik, ktp: w.ktp, factory: w.factory })))
 
-      let matchedWorker = filteredWorkers.find((w) => w.nik === inputValue || w.ktp === inputValue)
+      const trimmedInput = inputValue.trim().toLowerCase()
+      let matchedWorker = filteredWorkers.find((w) => w.nik.toLowerCase() === trimmedInput || w.ktp.toLowerCase() === trimmedInput)
 
       if (!matchedWorker) {
-        if (inputValue.length >= 5 && inputValue.length <= 6) {
-          matchedWorker = filteredWorkers.find((w) => w.nik.endsWith(inputValue))
-        } else if (inputValue.length === 7) {
-          matchedWorker = filteredWorkers.find((w) => w.ktp.endsWith(inputValue))
+        if (trimmedInput.length >= 5 && trimmedInput.length <= 6) {
+          matchedWorker = filteredWorkers.find((w) => w.nik.toLowerCase().endsWith(trimmedInput))
+        } else if (trimmedInput.length === 7) {
+          matchedWorker = filteredWorkers.find((w) => w.ktp.toLowerCase().endsWith(trimmedInput))
         }
       }
 
