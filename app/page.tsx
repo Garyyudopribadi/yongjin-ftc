@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { AlertCircle, Download, User, Briefcase, IdCard, CreditCard, Building, Calendar, CheckCircle, XCircle, Users } from "lucide-react"
+import { AlertCircle, Download, User, Briefcase, IdCard, CreditCard, Building, Calendar, CheckCircle, XCircle, Users, LayoutDashboard } from "lucide-react"
 import PDFViewer from "@/components/pdf-viewer"
 import { supabase } from "@/lib/supabase"
 
@@ -202,6 +203,11 @@ export default function WorkerVerificationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 p-4">
+      <Button asChild variant="outline" className="fixed bottom-4 right-4 z-10" title="Go to Dashboard">
+        <Link href="/dashboard">
+          <LayoutDashboard className="h-4 w-4" />
+        </Link>
+      </Button>
       <div className="mx-auto max-w-6xl">
         {verification.status === "idle" || verification.status === "error" ? (
           <div className="flex min-h-[80vh] items-center justify-center">
@@ -238,17 +244,17 @@ export default function WorkerVerificationPage() {
 
                   <div className="space-y-2">
                     <label htmlFor="input" className="block text-sm font-medium">
-                      NIK/KTP (Full, Last 5-6 digits for NIK, or Last 7 digits for KTP)
+                      NIK/KTP
                     </label>
                     <Input
                       id="input"
                       type="text"
-                      placeholder="Enter full ID, last 5-6 digits for NIK, or last 7 for KTP"
+                      placeholder="Enter full NIK or KTP"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       className="placeholder:text-muted-foreground"
                     />
-                    <p className="text-xs text-muted-foreground">Tip: Gunakan NIK atau KTP</p>
+                    <p className="text-xs text-muted-foreground">Tip: Hanya Karyawan Yongjin yang bisa mengakses dokumen ini</p>
                   </div>
 
                   {verification.status === "error" && verification.error && (
@@ -268,8 +274,10 @@ export default function WorkerVerificationPage() {
         ) : verification.status === "loading" ? (
           <div className="flex min-h-[80vh] items-center justify-center animate-in fade-in-0 duration-500">
             <div className="text-center">
-              <Spinner className="mb-4" />
-              <p className="text-muted-foreground">Verifying your credentials...</p>
+              <div className="flex items-center justify-center gap-2">
+                <Spinner />
+                <p className="text-muted-foreground">Verifying your credentials...</p>
+              </div>
             </div>
           </div>
         ) : (
