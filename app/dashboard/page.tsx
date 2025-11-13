@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Users, CheckCircle, XCircle, ChevronLeft, ChevronRight, Download, ArrowLeft } from "lucide-react"
+import { Users, CheckCircle, XCircle, ChevronLeft, ChevronRight, Download, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import jsPDF from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 
 interface Worker {
   id: number
@@ -30,6 +32,11 @@ interface Stats {
   unverified: number
 }
 
+interface ChartData {
+  date: string
+  verified: number
+}
+
 type Filter = 'all' | 'verified' | 'unverified'
 
 export default function DashboardPage() {
@@ -40,6 +47,8 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [filterFactory, setFilterFactory] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [chartData, setChartData] = useState<ChartData[]>([])
+  const [showChart, setShowChart] = useState(true)
   const itemsPerPage = 21
 
   useEffect(() => {
@@ -110,6 +119,17 @@ export default function DashboardPage() {
         setWorkers(allData)
         const uniqueFactories = [...new Set(allData.map(w => String(w.factory)))].sort()
         setFactories(uniqueFactories)
+
+        // Process chart data
+        const dateCounts: { [key: string]: number } = {}
+        allData.filter(w => w.status && w.verified_date).forEach(w => {
+          const date = new Date(w.verified_date!).toISOString().split('T')[0]
+          dateCounts[date] = (dateCounts[date] || 0) + 1
+        })
+        const processedChartData = Object.entries(dateCounts)
+          .map(([date, verified]) => ({ date, verified }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+        setChartData(processedChartData)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -216,6 +236,39 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="shadow-lg mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Verification Progress Over Time</CardTitle>
+                <CardDescription>Number of verified workers per day</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
+                {showChart ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </CardHeader>
+          {showChart && (
+            <CardContent>
+              <ChartContainer config={{ verified: { label: "Verified", color: "hsl(var(--chart-1))" } }}>
+                <LineChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorVerified" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0.8}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line type="monotone" dataKey="verified" stroke="url(#colorVerified)" strokeWidth={3} />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          )}
+        </Card>
 
         <Card className="shadow-lg">
           <CardHeader>
