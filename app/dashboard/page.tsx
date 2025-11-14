@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabase"
 import jsPDF from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Brush } from 'recharts'
 
 interface Worker {
   id: number
@@ -48,14 +48,20 @@ export default function DashboardPage() {
   const [filterFactory, setFilterFactory] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [chartData, setChartData] = useState<ChartData[]>([])
+  const [isMobile, setIsMobile] = useState(false)
   const [showChart, setShowChart] = useState(true)
-  const itemsPerPage = 21
+  const chartMargin = isMobile
+    ? { top: 5, right: 5, bottom: 80, left: 0 }
+    : { top: 10, right: 10, bottom: 100, left: 10 }
+  const itemsPerPage = 10
 
   useEffect(() => {
-    const access = localStorage.getItem('dashboard_access')
-    if (access !== 'true') {
-      window.location.href = '/'
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
     }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {
@@ -314,8 +320,8 @@ export default function DashboardPage() {
           </CardHeader>
           {showChart && (
             <CardContent>
-              <ChartContainer config={{ verified: { label: "Verified", color: "hsl(var(--chart-1))" } }}>
-                <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 60, left: 20 }}>
+              <ChartContainer config={{ verified: { label: "Verified", color: "hsl(var(--chart-1))" } }} className="h-[350px] md:h-[400px] w-full">
+                <LineChart data={chartData} margin={chartMargin}>
                   <defs>
                     <linearGradient id="colorVerified" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -323,10 +329,11 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" angle={-45} textAnchor="end" />
+                  <XAxis dataKey="date" angle={0} />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="verified" stroke="url(#colorVerified)" strokeWidth={3} />
+                  <Brush dataKey="date" height={20} stroke="#3b82f6" />
                 </LineChart>
               </ChartContainer>
             </CardContent>
