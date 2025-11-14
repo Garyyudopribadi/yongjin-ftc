@@ -149,9 +149,63 @@ export default function DashboardPage() {
   const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage)
   const paginatedWorkers = filteredWorkers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
+  const exportChartToPDF = () => {
+    const doc = new jsPDF({ compress: true })
+
+    // Add logo
+    const logoUrl = '/icons/icon-128x128.png'
+    doc.addImage(logoUrl, 'PNG', 14, 10, 20, 20)
+
+    // Add company name
+    doc.setFontSize(16)
+    doc.text('PT.YONGJIN JAVASUKA GARMENT', 40, 20)
+    doc.setFontSize(12)
+    doc.text('Verification Progress Over Time Report', 40, 30)
+
+    // Calculate total
+    const totalVerified = chartData.reduce((sum, item) => sum + item.verified, 0)
+
+    const tableColumn = ['No', 'Date', 'Verified Count']
+    const tableRows = chartData.map((item, index) => [
+      index + 1,
+      item.date,
+      item.verified
+    ])
+
+    // Add total row
+    tableRows.push(['', 'Total', totalVerified])
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [41, 128, 185] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      didParseCell: (data) => {
+        if (data.row.index === tableRows.length - 1) {
+          data.cell.styles.fillColor = [200, 200, 200] // Gray for total row
+          data.cell.styles.fontStyle = 'bold'
+        }
+      }
+    })
+
+    doc.save('verification-progress.pdf')
+  }
+
   const exportToPDF = () => {
-    const doc = new jsPDF()
-    doc.text('Yongjin FTC Workers Data', 14, 16)
+    const doc = new jsPDF({ compress: true })
+
+    // Add logo
+    const logoUrl = '/icons/icon-128x128.png'
+    doc.addImage(logoUrl, 'PNG', 14, 10, 20, 20)
+
+    // Add company name
+    doc.setFontSize(16)
+    doc.text('PT.YONGJIN JAVASUKA GARMENT', 40, 20)
+    doc.setFontSize(12)
+    doc.text('Yongjin FTC Workers Data Report', 40, 30)
+
     const tableColumn = ['No', 'Name', 'NIK', 'Department', 'Factory', 'Status', 'Verified Date']
     const tableRows = filteredWorkers.map((worker, index) => [
       index + 1,
@@ -166,7 +220,10 @@ export default function DashboardPage() {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 20,
+      startY: 40,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [41, 128, 185] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
     })
 
     doc.save('workers-data.pdf')
@@ -244,15 +301,21 @@ export default function DashboardPage() {
                 <CardTitle>Verification Progress Over Time</CardTitle>
                 <CardDescription>Number of verified workers per day</CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
-                {showChart ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
+                  {showChart ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+                <Button onClick={exportChartToPDF} variant="outline" size="sm" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export PDF
+                </Button>
+              </div>
             </div>
           </CardHeader>
           {showChart && (
             <CardContent>
               <ChartContainer config={{ verified: { label: "Verified", color: "hsl(var(--chart-1))" } }}>
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 60, left: 20 }}>
                   <defs>
                     <linearGradient id="colorVerified" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -260,7 +323,7 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <XAxis dataKey="date" angle={-45} textAnchor="end" />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="verified" stroke="url(#colorVerified)" strokeWidth={3} />
