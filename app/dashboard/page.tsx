@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabase"
 import jsPDF from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Brush } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Brush, Legend } from 'recharts'
 
 interface Worker {
   id: number
@@ -27,20 +27,21 @@ interface Worker {
 }
 
 interface Stats {
-  total: number
-  verified: number
-  unverified: number
+  total: { factory2: number, factory3: number, overall: number }
+  verified: { factory2: number, factory3: number, overall: number }
+  unverified: { factory2: number, factory3: number, overall: number }
 }
 
 interface ChartData {
   date: string
-  verified: number
+  factory2: number
+  factory3: number
 }
 
 type Filter = 'all' | 'verified' | 'unverified'
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>({ total: 0, verified: 0, unverified: 0 })
+  const [stats, setStats] = useState<Stats>({ total: { factory2: 0, factory3: 0, overall: 0 }, verified: { factory2: 0, factory3: 0, overall: 0 }, unverified: { factory2: 0, factory3: 0, overall: 0 } })
   const [workers, setWorkers] = useState<Worker[]>([])
   const [factories, setFactories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,12 +75,42 @@ export default function DashboardPage() {
 
         if (totalError) throw totalError
 
+        const { count: total2, error: total2Error } = await supabase
+          .from('yongjin_ftc_workers')
+          .select('*', { count: 'exact', head: true })
+          .eq('factory', 2)
+
+        if (total2Error) throw total2Error
+
+        const { count: total3, error: total3Error } = await supabase
+          .from('yongjin_ftc_workers')
+          .select('*', { count: 'exact', head: true })
+          .eq('factory', 3)
+
+        if (total3Error) throw total3Error
+
         const { count: verified, error: verifiedError } = await supabase
           .from('yongjin_ftc_workers')
           .select('*', { count: 'exact', head: true })
           .eq('status', true)
 
         if (verifiedError) throw verifiedError
+
+        const { count: verified2, error: verified2Error } = await supabase
+          .from('yongjin_ftc_workers')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', true)
+          .eq('factory', 2)
+
+        if (verified2Error) throw verified2Error
+
+        const { count: verified3, error: verified3Error } = await supabase
+          .from('yongjin_ftc_workers')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', true)
+          .eq('factory', 3)
+
+        if (verified3Error) throw verified3Error
 
         const { count: unverified, error: unverifiedError } = await supabase
           .from('yongjin_ftc_workers')
@@ -88,10 +119,26 @@ export default function DashboardPage() {
 
         if (unverifiedError) throw unverifiedError
 
+        const { count: unverified2, error: unverified2Error } = await supabase
+          .from('yongjin_ftc_workers')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', false)
+          .eq('factory', 2)
+
+        if (unverified2Error) throw unverified2Error
+
+        const { count: unverified3, error: unverified3Error } = await supabase
+          .from('yongjin_ftc_workers')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', false)
+          .eq('factory', 3)
+
+        if (unverified3Error) throw unverified3Error
+
         setStats({
-          total: total || 0,
-          verified: verified || 0,
-          unverified: unverified || 0,
+          total: { factory2: total2 || 0, factory3: total3 || 0, overall: total || 0 },
+          verified: { factory2: verified2 || 0, factory3: verified3 || 0, overall: verified || 0 },
+          unverified: { factory2: unverified2 || 0, factory3: unverified3 || 0, overall: unverified || 0 },
         })
 
         // Fetch all workers
@@ -127,14 +174,22 @@ export default function DashboardPage() {
         setFactories(uniqueFactories)
 
         // Process chart data
-        const dateCounts: { [key: string]: number } = {}
+        const dateCounts2: { [key: string]: number } = {}
+        const dateCounts3: { [key: string]: number } = {}
         allData.filter(w => w.status && w.verified_date).forEach(w => {
           const date = new Date(w.verified_date!).toISOString().split('T')[0]
-          dateCounts[date] = (dateCounts[date] || 0) + 1
+          if (String(w.factory) === '2') {
+            dateCounts2[date] = (dateCounts2[date] || 0) + 1
+          } else if (String(w.factory) === '3') {
+            dateCounts3[date] = (dateCounts3[date] || 0) + 1
+          }
         })
-        const processedChartData = Object.entries(dateCounts)
-          .map(([date, verified]) => ({ date, verified }))
-          .sort((a, b) => a.date.localeCompare(b.date))
+        const allDates = new Set([...Object.keys(dateCounts2), ...Object.keys(dateCounts3)])
+        const processedChartData = Array.from(allDates).map(date => ({
+          date,
+          factory2: dateCounts2[date] || 0,
+          factory3: dateCounts3[date] || 0
+        })).sort((a, b) => a.date.localeCompare(b.date))
         setChartData(processedChartData)
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -169,17 +224,19 @@ export default function DashboardPage() {
     doc.text('Verification Progress Over Time Report', 40, 30)
 
     // Calculate total
-    const totalVerified = chartData.reduce((sum, item) => sum + item.verified, 0)
+    const totalVerified = chartData.reduce((sum, item) => sum + item.factory2 + item.factory3, 0)
 
-    const tableColumn = ['No', 'Date', 'Verified Count']
+    const tableColumn = ['No', 'Date', 'Factory 2', 'Factory 3', 'Total']
     const tableRows = chartData.map((item, index) => [
       index + 1,
       item.date,
-      item.verified
+      item.factory2,
+      item.factory3,
+      item.factory2 + item.factory3
     ])
 
     // Add total row
-    tableRows.push(['', 'Total', totalVerified])
+    tableRows.push(['', 'Total', chartData.reduce((sum, item) => sum + item.factory2, 0), chartData.reduce((sum, item) => sum + item.factory3, 0), totalVerified])
 
     autoTable(doc, {
       head: [tableColumn],
@@ -254,9 +311,12 @@ export default function DashboardPage() {
         <ArrowLeft className="h-4 w-4" />
       </Button>
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-4xl font-bold text-center">PT.YONGJIN JAVASUKA GARMENT</h1>
-          <p className="text-center text-muted-foreground mt-2">Overview of worker verification handbook data</p>
+        <div className="mb-8 flex flex-col items-center gap-4">
+          <img src="/icons/icon-128x128.png" alt="PT.YONGJIN JAVASUKA GARMENT Logo" className="w-16 h-16 object-contain" />
+          <div className="text-center">
+            <h1 className="text-2xl md:text-4xl font-bold">PT.YONGJIN JAVASUKA GARMENT</h1>
+            <p className="text-muted-foreground mt-2">Overview of worker verification handbook data</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -266,10 +326,28 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">
-                Total data in the database
-              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-700">Factory 2</span>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">{stats.total.factory2}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-700">Factory 3</span>
+                  </div>
+                  <span className="text-lg font-bold text-green-600">{stats.total.factory3}</span>
+                </div>
+                <div className="border-t pt-1 mt-2">
+                  <div className="text-2xl font-bold text-center">{stats.total.overall}</div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Total data in the database
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -279,10 +357,28 @@ export default function DashboardPage() {
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.verified}</div>
-              <p className="text-xs text-muted-foreground">
-                Workers who have been verified
-              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-700">Factory 2</span>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">{stats.verified.factory2}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-700">Factory 3</span>
+                  </div>
+                  <span className="text-lg font-bold text-green-600">{stats.verified.factory3}</span>
+                </div>
+                <div className="border-t pt-1 mt-2">
+                  <div className="text-2xl font-bold text-center">{stats.verified.overall}</div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Workers who have been verified
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -292,10 +388,28 @@ export default function DashboardPage() {
               <XCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.unverified}</div>
-              <p className="text-xs text-muted-foreground">
-                Workers who have not been verified
-              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-700">Factory 2</span>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">{stats.unverified.factory2}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-700">Factory 3</span>
+                  </div>
+                  <span className="text-lg font-bold text-green-600">{stats.unverified.factory3}</span>
+                </div>
+                <div className="border-t pt-1 mt-2">
+                  <div className="text-2xl font-bold text-center">{stats.unverified.overall}</div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Workers who have not been verified
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -304,8 +418,8 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Verification Progress Over Time</CardTitle>
-                <CardDescription>Number of verified workers per day</CardDescription>
+                <CardTitle>Verification Progress by Factory Over Time</CardTitle>
+                <CardDescription>Number of verified workers per day by factory</CardDescription>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
@@ -320,19 +434,25 @@ export default function DashboardPage() {
           </CardHeader>
           {showChart && (
             <CardContent>
-              <ChartContainer config={{ verified: { label: "Verified", color: "hsl(var(--chart-1))" } }} className="h-[350px] md:h-[400px] w-full">
+              <ChartContainer config={{ factory2: { label: "Factory 2", color: "hsl(var(--chart-1))" }, factory3: { label: "Factory 3", color: "hsl(var(--chart-2))" } }} className="h-[350px] md:h-[400px] w-full">
                 <LineChart data={chartData} margin={chartMargin}>
                   <defs>
-                    <linearGradient id="colorVerified" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorFactory2" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0.8}/>
+                    </linearGradient>
+                    <linearGradient id="colorFactory3" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#047857" stopOpacity={0.8}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" angle={0} />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="verified" stroke="url(#colorVerified)" strokeWidth={3} />
+                  <Legend />
+                  <Line type="monotone" dataKey="factory2" stroke="url(#colorFactory2)" strokeWidth={3} />
+                  <Line type="monotone" dataKey="factory3" stroke="url(#colorFactory3)" strokeWidth={3} />
                   <Brush dataKey="date" height={20} stroke="#3b82f6" />
                 </LineChart>
               </ChartContainer>
