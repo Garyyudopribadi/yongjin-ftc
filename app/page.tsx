@@ -208,7 +208,9 @@ export default function WorkerVerificationPage() {
 
   const handlePasskeySubmit = () => {
     if (passkeyInput === "0000") {
-      localStorage.setItem('dashboard_access', 'true')
+      const expiry = Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+      sessionStorage.setItem('dashboard_passkey', '0000')
+      sessionStorage.setItem('dashboard_expiry', expiry.toString())
       setShowPasskeyModal(false)
       setPasskeyInput("")
       setPasskeyError("")

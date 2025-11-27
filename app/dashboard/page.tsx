@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import jsPDF from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Brush, Legend } from 'recharts'
+import * as XLSX from 'xlsx'
 
 interface Worker {
   id: number
@@ -44,9 +46,12 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ total: { factory2: 0, factory3: 0, overall: 0 }, verified: { factory2: 0, factory3: 0, overall: 0 }, unverified: { factory2: 0, factory3: 0, overall: 0 } })
   const [workers, setWorkers] = useState<Worker[]>([])
   const [factories, setFactories] = useState<string[]>([])
+  const [departments, setDepartments] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
   const [filterFactory, setFilterFactory] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterDepartment, setFilterDepartment] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [chartData, setChartData] = useState<ChartData[]>([])
   const [isMobile, setIsMobile] = useState(false)
@@ -57,6 +62,18 @@ export default function DashboardPage() {
   const itemsPerPage = 10
 
   useEffect(() => {
+    // Check authentication
+    const passkey = sessionStorage.getItem('dashboard_passkey')
+    const expiry = sessionStorage.getItem('dashboard_expiry')
+    const now = Date.now()
+
+    if (!passkey || !expiry || now > parseInt(expiry)) {
+      sessionStorage.removeItem('dashboard_passkey')
+      sessionStorage.removeItem('dashboard_expiry')
+      window.location.href = '/'
+      return
+    }
+
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -171,7 +188,9 @@ export default function DashboardPage() {
 
         setWorkers(allData)
         const uniqueFactories = [...new Set(allData.map(w => String(w.factory)))].sort()
+        const uniqueDepartments = [...new Set(allData.map(w => w.department))].sort()
         setFactories(uniqueFactories)
+        setDepartments(uniqueDepartments)
 
         // Process chart data
         const dateCounts2: { [key: string]: number } = {}
@@ -204,8 +223,24 @@ export default function DashboardPage() {
   const filteredWorkers = workers.filter(worker => {
     const statusMatch = filter === 'all' || (filter === 'verified' && worker.status) || (filter === 'unverified' && !worker.status)
     const factoryMatch = filterFactory === 'all' || String(worker.factory) === filterFactory
-    return statusMatch && factoryMatch
+    const departmentMatch = filterDepartment === 'all' || worker.department === filterDepartment
+    const searchMatch = searchTerm === '' ||
+      worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      worker.nik.toLowerCase().includes(searchTerm.toLowerCase())
+    return statusMatch && factoryMatch && departmentMatch && searchMatch
   })
+
+  // Filter departments based on selected factory
+  const filteredDepartments = filterFactory === 'all'
+    ? departments
+    : [...new Set(workers.filter(w => String(w.factory) === filterFactory).map(w => w.department))].sort()
+
+  // Reset department filter when factory changes if current department is not available
+  useEffect(() => {
+    if (filterDepartment !== 'all' && !filteredDepartments.includes(filterDepartment)) {
+      setFilterDepartment('all')
+    }
+  }, [filterFactory, filteredDepartments, filterDepartment])
 
   const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage)
   const paginatedWorkers = filteredWorkers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -292,6 +327,82 @@ export default function DashboardPage() {
     doc.save('workers-data.pdf')
   }
 
+  const exportToExcel = () => {
+    // Create data with header
+    const headerData = [
+      { No: 'PT.YONGJIN JAVASUKA GARMENT', Name: '', NIK: '', Department: '', Factory: '', Status: '', 'Verified Date': '' },
+      { No: 'Yongjin FTC Workers Data Report', Name: '', NIK: '', Department: '', Factory: '', Status: '', 'Verified Date': '' },
+      { No: '', Name: '', NIK: '', Department: '', Factory: '', Status: '', 'Verified Date': '' }, // Empty row
+    ]
+
+    const workerData = filteredWorkers.map((worker, index) => ({
+      No: index + 1,
+      Name: worker.name,
+      NIK: worker.nik,
+      Department: worker.department,
+      Factory: `Factory ${worker.factory}`,
+      Status: worker.status ? 'Verified' : 'Unverified',
+      'Verified Date': worker.verified_date ? new Date(worker.verified_date).toLocaleDateString() : 'N/A'
+    }))
+
+    const allData = [...headerData, ...workerData]
+
+    const worksheet = XLSX.utils.json_to_sheet(allData, { skipHeader: true })
+
+    // Define styles
+    const headerStyle = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2D5F8F' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
+    const subHeaderStyle = { font: { sz: 12, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '4A90E2' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
+    const tableHeaderStyle = { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '5BA0F2' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
+    const dataStyle = { font: { sz: 10 }, alignment: { horizontal: 'left', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
+    const verifiedStyle = { ...dataStyle, fill: { fgColor: { rgb: 'D4EDDA' } } }
+    const unverifiedStyle = { ...dataStyle, fill: { fgColor: { rgb: 'F8D7DA' } } }
+
+    // Apply styles to header
+    worksheet['A1'].s = headerStyle
+    worksheet['A2'].s = subHeaderStyle
+
+    // Add table headers (assuming data starts at row 4)
+    const tableHeaders = ['No', 'Name', 'NIK', 'Department', 'Factory', 'Status', 'Verified Date']
+    tableHeaders.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 3, c: index })
+      worksheet[cellRef] = { v: header, t: 's', s: tableHeaderStyle }
+    })
+
+    // Apply styles to data rows
+    workerData.forEach((row, rowIndex) => {
+      const actualRow = rowIndex + 4 // Data starts at row 4 (0-indexed)
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 0 })] = { v: row.No, t: 'n', s: dataStyle }
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 1 })] = { v: row.Name, t: 's', s: dataStyle }
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 2 })] = { v: row.NIK, t: 's', s: dataStyle }
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 3 })] = { v: row.Department, t: 's', s: dataStyle }
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 4 })] = { v: row.Factory, t: 's', s: dataStyle }
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 5 })] = { v: row.Status, t: 's', s: row.Status === 'Verified' ? verifiedStyle : unverifiedStyle }
+      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 6 })] = { v: row['Verified Date'], t: 's', s: dataStyle }
+    })
+
+    // Merge cells for header
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Merge A1 to G1 for company name
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }, // Merge A2 to G2 for report title
+    ]
+
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 5 }, // No
+      { wch: 25 }, // Name
+      { wch: 15 }, // NIK
+      { wch: 20 }, // Department
+      { wch: 10 }, // Factory
+      { wch: 12 }, // Status
+      { wch: 15 }, // Verified Date
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Workers Data')
+
+    XLSX.writeFile(workbook, 'workers-data.xlsx')
+  }
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-accent/5 flex items-center justify-center z-50">
@@ -307,7 +418,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 p-4">
-      <Button variant="outline" className="fixed bottom-4 right-4 z-10" title="Back to Home" onClick={() => { localStorage.removeItem('dashboard_access'); window.location.href = '/'; }}>
+      <Button variant="outline" className="fixed bottom-4 right-4 z-10" title="Back to Home" onClick={() => { sessionStorage.removeItem('dashboard_passkey'); sessionStorage.removeItem('dashboard_expiry'); window.location.href = '/'; }}>
         <ArrowLeft className="h-4 w-4" />
       </Button>
       <div className="mx-auto max-w-6xl">
@@ -467,36 +578,59 @@ export default function DashboardPage() {
                 <CardTitle>Workers Data</CardTitle>
                 <CardDescription>List of all workers with verification status</CardDescription>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Select value={filter} onValueChange={(value: Filter) => setFilter(value)}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Workers</SelectItem>
-                    <SelectItem value="verified">Verified Only</SelectItem>
-                    <SelectItem value="unverified">Unverified Only</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={filterFactory} onValueChange={setFilterFactory}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by factory" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Factories</SelectItem>
-                    {factories.map(factory => (
-                      <SelectItem key={factory} value={factory}>Factory {factory}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex gap-2">
                 <Button onClick={exportToPDF} variant="outline" className="gap-2 w-full sm:w-auto">
                   <Download className="h-4 w-4" />
                   Export PDF
+                </Button>
+                <Button onClick={exportToExcel} variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" />
+                  Export Excel
                 </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <Input
+                placeholder="Search by name or NIK..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full sm:w-[200px]"
+              />
+              <Select value={filter} onValueChange={(value: Filter) => setFilter(value)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Workers</SelectItem>
+                  <SelectItem value="verified">Verified Only</SelectItem>
+                  <SelectItem value="unverified">Unverified Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterFactory} onValueChange={setFilterFactory}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by factory" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Factories</SelectItem>
+                  {factories.map(factory => (
+                    <SelectItem key={factory} value={factory}>Factory {factory}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {filteredDepartments.map(department => (
+                    <SelectItem key={department} value={department}>{department}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
