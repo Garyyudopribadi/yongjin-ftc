@@ -220,27 +220,46 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  const filteredWorkers = workers.filter(worker => {
-    const statusMatch = filter === 'all' || (filter === 'verified' && worker.status) || (filter === 'unverified' && !worker.status)
-    const factoryMatch = filterFactory === 'all' || String(worker.factory) === filterFactory
-    const departmentMatch = filterDepartment === 'all' || worker.department === filterDepartment
-    const searchMatch = searchTerm === '' ||
-      worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      worker.nik.toLowerCase().includes(searchTerm.toLowerCase())
-    return statusMatch && factoryMatch && departmentMatch && searchMatch
-  })
+  // Helper function to get current filtered workers
+  const getCurrentFilteredWorkers = () => {
+    return workers.filter(worker => {
+      const statusMatch = filter === 'all' || (filter === 'verified' && worker.status) || (filter === 'unverified' && !worker.status)
+      const factoryMatch = filterFactory === 'all' || String(worker.factory) === filterFactory
+      const departmentMatch = filterDepartment === 'all' || worker.department === filterDepartment
+      const searchMatch = searchTerm === '' ||
+        worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        worker.nik.toLowerCase().includes(searchTerm.toLowerCase())
+      return statusMatch && factoryMatch && departmentMatch && searchMatch
+    })
+  }
 
-  // Filter departments based on selected factory
-  const filteredDepartments = filterFactory === 'all'
-    ? departments
-    : [...new Set(workers.filter(w => String(w.factory) === filterFactory).map(w => w.department))].sort()
+  const filteredWorkers = getCurrentFilteredWorkers()
 
-  // Reset department filter when factory changes if current department is not available
+  // Filter departments based on selected factory and status
+  const filteredDepartments = (() => {
+    let filteredWorkersForDept = workers
+
+    // Apply factory filter
+    if (filterFactory !== 'all') {
+      filteredWorkersForDept = filteredWorkersForDept.filter(w => String(w.factory) === filterFactory)
+    }
+
+    // Apply status filter
+    if (filter !== 'all') {
+      filteredWorkersForDept = filteredWorkersForDept.filter(w =>
+        filter === 'verified' ? w.status : !w.status
+      )
+    }
+
+    return [...new Set(filteredWorkersForDept.map(w => w.department))].sort()
+  })()
+
+  // Reset department filter when factory or status changes if current department is not available
   useEffect(() => {
     if (filterDepartment !== 'all' && !filteredDepartments.includes(filterDepartment)) {
       setFilterDepartment('all')
     }
-  }, [filterFactory, filteredDepartments, filterDepartment])
+  }, [filterFactory, filter, filteredDepartments, filterDepartment])
 
   const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage)
   const paginatedWorkers = filteredWorkers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -328,78 +347,62 @@ export default function DashboardPage() {
   }
 
   const exportToExcel = () => {
-    // Create data with header
-    const headerData = [
-      { No: 'PT.YONGJIN JAVASUKA GARMENT', Name: '', NIK: '', Department: '', Factory: '', Status: '', 'Verified Date': '' },
-      { No: 'Yongjin FTC Workers Data Report', Name: '', NIK: '', Department: '', Factory: '', Status: '', 'Verified Date': '' },
-      { No: '', Name: '', NIK: '', Department: '', Factory: '', Status: '', 'Verified Date': '' }, // Empty row
-    ]
+    const worksheet: any = {}
 
-    const workerData = filteredWorkers.map((worker, index) => ({
-      No: index + 1,
-      Name: worker.name,
-      NIK: worker.nik,
-      Department: worker.department,
-      Factory: `Factory ${worker.factory}`,
-      Status: worker.status ? 'Verified' : 'Unverified',
-      'Verified Date': worker.verified_date ? new Date(worker.verified_date).toLocaleDateString() : 'N/A'
-    }))
-
-    const allData = [...headerData, ...workerData]
-
-    const worksheet = XLSX.utils.json_to_sheet(allData, { skipHeader: true })
-
-    // Define styles
-    const headerStyle = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2D5F8F' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
-    const subHeaderStyle = { font: { sz: 12, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '4A90E2' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
-    const tableHeaderStyle = { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '5BA0F2' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
-    const dataStyle = { font: { sz: 10 }, alignment: { horizontal: 'left', vertical: 'center' }, border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } } }
+    // Apply basic styling
+    const headerStyle = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2D5F8F' } }, alignment: { horizontal: 'center', vertical: 'center' } }
+    const subHeaderStyle = { font: { sz: 12, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '4A90E2' } }, alignment: { horizontal: 'center', vertical: 'center' } }
+    const tableHeaderStyle = { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2980B9' } }, alignment: { horizontal: 'center', vertical: 'center' } }
+    const dataStyle = { font: { sz: 10 }, alignment: { horizontal: 'left', vertical: 'center' } }
+    const alternateStyle = { ...dataStyle, fill: { fgColor: { rgb: 'F5F5F5' } } }
     const verifiedStyle = { ...dataStyle, fill: { fgColor: { rgb: 'D4EDDA' } } }
     const unverifiedStyle = { ...dataStyle, fill: { fgColor: { rgb: 'F8D7DA' } } }
 
-    // Apply styles to header
-    worksheet['A1'].s = headerStyle
-    worksheet['A2'].s = subHeaderStyle
+    // Set header cells
+    worksheet['A1'] = { v: 'PT.YONGJIN JAVASUKA GARMENT', t: 's', s: headerStyle }
+    worksheet['A2'] = { v: 'Yongjin FTC Workers Data Report', t: 's', s: subHeaderStyle }
+    worksheet['A3'] = { v: '', t: 's' }
+    worksheet['A4'] = { v: 'No', t: 's', s: tableHeaderStyle }
+    worksheet['B4'] = { v: 'Name', t: 's', s: tableHeaderStyle }
+    worksheet['C4'] = { v: 'NIK', t: 's', s: tableHeaderStyle }
+    worksheet['D4'] = { v: 'Department', t: 's', s: tableHeaderStyle }
+    worksheet['E4'] = { v: 'Factory', t: 's', s: tableHeaderStyle }
+    worksheet['F4'] = { v: 'Status', t: 's', s: tableHeaderStyle }
+    worksheet['G4'] = { v: 'Verified Date', t: 's', s: tableHeaderStyle }
 
-    // Add table headers (assuming data starts at row 4)
-    const tableHeaders = ['No', 'Name', 'NIK', 'Department', 'Factory', 'Status', 'Verified Date']
-    tableHeaders.forEach((header, index) => {
-      const cellRef = XLSX.utils.encode_cell({ r: 3, c: index })
-      worksheet[cellRef] = { v: header, t: 's', s: tableHeaderStyle }
+    // Set data rows
+    filteredWorkers.forEach((worker, index) => {
+      const row = index + 5 // Data starts at row 5 (0-indexed)
+      const isAlternate = index % 2 === 1
+      const rowStyle = isAlternate ? alternateStyle : dataStyle
+      const statusStyle = worker.status ? verifiedStyle : unverifiedStyle
+
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })] = { v: index + 1, t: 'n', s: rowStyle }
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 1 })] = { v: worker.name, t: 's', s: rowStyle }
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 2 })] = { v: worker.nik, t: 's', s: rowStyle }
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 3 })] = { v: worker.department, t: 's', s: rowStyle }
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 4 })] = { v: `Factory ${worker.factory}`, t: 's', s: rowStyle }
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 5 })] = { v: worker.status ? 'Verified' : 'Unverified', t: 's', s: statusStyle }
+      worksheet[XLSX.utils.encode_cell({ r: row, c: 6 })] = { v: worker.verified_date ? new Date(worker.verified_date).toLocaleDateString() : 'N/A', t: 's', s: rowStyle }
     })
 
-    // Apply styles to data rows
-    workerData.forEach((row, rowIndex) => {
-      const actualRow = rowIndex + 4 // Data starts at row 4 (0-indexed)
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 0 })] = { v: row.No, t: 'n', s: dataStyle }
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 1 })] = { v: row.Name, t: 's', s: dataStyle }
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 2 })] = { v: row.NIK, t: 's', s: dataStyle }
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 3 })] = { v: row.Department, t: 's', s: dataStyle }
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 4 })] = { v: row.Factory, t: 's', s: dataStyle }
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 5 })] = { v: row.Status, t: 's', s: row.Status === 'Verified' ? verifiedStyle : unverifiedStyle }
-      worksheet[XLSX.utils.encode_cell({ r: actualRow, c: 6 })] = { v: row['Verified Date'], t: 's', s: dataStyle }
-    })
+    // Set worksheet range
+    const maxRow = filteredWorkers.length > 0 ? 4 + filteredWorkers.length : 4
+    worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxRow, c: 6 } })
 
     // Merge cells for header
     worksheet['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Merge A1 to G1 for company name
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }, // Merge A2 to G2 for report title
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
     ]
 
     // Set column widths
     worksheet['!cols'] = [
-      { wch: 5 }, // No
-      { wch: 25 }, // Name
-      { wch: 15 }, // NIK
-      { wch: 20 }, // Department
-      { wch: 10 }, // Factory
-      { wch: 12 }, // Status
-      { wch: 15 }, // Verified Date
+      { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 15 }
     ]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Workers Data')
-
     XLSX.writeFile(workbook, 'workers-data.xlsx')
   }
 
