@@ -439,6 +439,11 @@ export default function WorkerVerificationPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <footer className="mt-8 text-center text-sm text-muted-foreground border-t pt-4">
+        <p>© 2025 PT.YONGJIN JAVASUKA GARMENT. All rights reserved.</p>
+        <p>⚡ Powered & Created By Garyudo.</p>
+      </footer>
     </div>
   )
 }
